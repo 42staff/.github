@@ -1,0 +1,59 @@
+name: Build & Package for Fedora
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+
+jobs:
+  build-fedora:
+    strategy:
+      max-parallel: 10
+      matrix:
+        version:
+          - version: 41
+            tag: "1.3"
+          - version: 42
+            tag: "1.3"
+    runs-on:
+      group: "studenv-bes"
+    container:
+      image: pkg-registry.de-dust2.42.school/builders/fedora${{ matrix.version.version }}:${{ matrix.version.tag }}
+      credentials:
+         username: "${{ secrets.STUDENV_NEXUS_USERNAME }}"
+         password: "${{ secrets.STUDENV_NEXUS_PASSWORD }}"
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+        with:
+          set-safe-directory: true
+          fetch-tags: true
+          fetch-depth: 0
+
+      - name: "Add repository as safe for git"
+        run: "git config --global --add safe.directory \"$PWD\""
+
+      - name: "Set Nexus Target"
+        env:
+          NEXUS_RPM_REPOSITORY: "${{ vars.STUDENV_NEXUS_RPM_REPOSITORY }}/ft-fedora-${{ matrix.version.version }}"
+          NEXUS_RPM_TESTING_REPOSITORY: "${{ vars.STUDENV_NEXUS_RPM_REPOSITORY }}/ft-fedora-${{ matrix.version.version }}-testing"
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            echo "NEXUS_RPM_REPOSITORY=$NEXUS_RPM_REPOSITORY" >> $GITHUB_ENV
+          else
+            echo "NEXUS_RPM_REPOSITORY=$NEXUS_RPM_TESTING_REPOSITORY" >> $GITHUB_ENV
+          fi
+
+      - name: Execute the build scripts
+        env:
+          REF_TYPE: "${{ github.ref_type }}"
+          REF: "${{ github.ref_name }}"
+          NEXUS_USERNAME: "${{ secrets.STUDENV_NEXUS_USERNAME }}"
+          NEXUS_PASSWORD: "${{ secrets.STUDENV_NEXUS_PASSWORD }}"
+          GPG_KEY: "${{ secrets.STUDENV_NEXUS_RPM_GPG_KEY }}"
+          GPG_PASS: "${{ secrets.STUDENV_NEXUS_RPM_GPG_PASSPHRASE }}"
+          GPG_NAME: "${{ vars.STUDENV_GPG_RPM_NAME }}"
+        run: "./scripts_tools/build"
+
