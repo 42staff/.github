@@ -1,9 +1,0 @@
-{
-    "name": "Studenv Fedora Workflow",
-    "description": "Generic Workflow to build assets running on Fedora Workstations",
-    "iconName": "octicon gear",
-    "filePatterns": [
-        "^scripts_tools/build",
-    ]
-}
-
